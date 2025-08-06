@@ -1,0 +1,6 @@
+# `ugp-backend-chart/values.yaml`
+
+image:
+  repository: ugp-backend-image
+  tag: latest
+  pullPolicy: IfNotPresent

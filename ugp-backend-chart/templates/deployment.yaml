@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+      # ADDED: This is the critical change to fix the issue
+      annotations:
+        eks.amazonaws.com/role-arn: "arn:aws:iam::064827688814:role/ugp-backend-sa-role"
+    spec:
+      serviceAccountName: ugp-backend-service-account   
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        ports:
+        - containerPort: 5000
