@@ -3,4 +3,4 @@ image:
   tag: latest
 
 # Add this new value for DynamoDB integration
-dynamoDbTableName: "ugp-messages-table" # IMPORTANT: Ensure this matches your actual DynamoDB table name
+dynamoDbTableName: "ugp-eks-cicd-messages-table" # IMPORTANT: Ensure this matches your actual DynamoDB table name

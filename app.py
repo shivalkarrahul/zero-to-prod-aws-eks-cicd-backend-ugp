@@ -4,12 +4,19 @@ import os
 import boto3
 import uuid # For generating unique IDs for messages
 import time # For timestamp
+from flask_cors import CORS # Import CORS
 
 app = Flask(__name__)
+# Initialize CORS for your app.
+# By default, CORS(app) allows all origins, which is good for initial testing.
+# For production, you should restrict this to your S3 static website hosting endpoint.
+# Example: CORS(app, resources={r"/*": {"origins": "http://your-frontend-s3-bucket-name.s3-website-us-east-1.amazonaws.com"}})
+CORS(app)
+
 
 # --- DynamoDB Initialization ---
 # Get DynamoDB table name from environment variable
-DYNAMODB_TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'ugp-messages-table') # Default to a common name
+DYNAMODB_TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'ugp-eks-cicd-messages-table') # Default to a common name
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1') # Default to us-east-1
 
 try:
@@ -85,4 +92,3 @@ def handle_messages():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-
