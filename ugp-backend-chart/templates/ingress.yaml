@@ -6,7 +6,7 @@ metadata:
     # Removed rewrite-target as it was causing a mismatch with the Flask app route
     # nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
-  ingressClassName: nginx # ADDED: This tells the NGINX controller to manage this Ingress
+  ingressClassName: nginx # This tells the NGINX controller to manage this Ingress
   rules:
     # It's highly recommended to define a host for production.
     # For testing, if no other host-based ingresses exist, you might omit it,
@@ -14,7 +14,14 @@ spec:
     # - host: your-backend-domain.com # <--- UNCOMMENT AND REPLACE WITH YOUR DOMAIN
     - http:
         paths:
-          - path: /api/hello # Ingress path
+          - path: /api/hello # Ingress path for /api/hello
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Chart.Name }}-service
+                port:
+                  number: 80 # Service port
+          - path: /messages # Ingress path for /messages (for both GET and POST)
             pathType: Prefix
             backend:
               service:

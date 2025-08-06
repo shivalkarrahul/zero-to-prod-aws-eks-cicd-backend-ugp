@@ -1,6 +1,6 @@
-# `ugp-backend-chart/values.yaml`
-
 image:
-  repository: ugp-backend-image
+  repository: 064827688814.dkr.ecr.us-east-1.amazonaws.com/ugp-eks-cicd-backend-repository
   tag: latest
-  pullPolicy: IfNotPresent
+
+# Add this new value for DynamoDB integration
+dynamoDbTableName: "ugp-messages-table" # IMPORTANT: Ensure this matches your actual DynamoDB table name

@@ -11,13 +11,21 @@ spec:
     metadata:
       labels:
         app: {{ .Chart.Name }}
-      # ADDED: This is the critical change to fix the issue
       annotations:
+        # Ensure this annotation is present for IRSA
         eks.amazonaws.com/role-arn: "arn:aws:iam::064827688814:role/ugp-backend-sa-role"
     spec:
-      serviceAccountName: ugp-backend-service-account   
+      serviceAccountName: ugp-backend-service-account
+      # Keep imagePullSecrets for now as a temporary workaround if needed
+      imagePullSecrets:
+      - name: ecr-cred
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         ports:
         - containerPort: 5000
+        env: # ADD THIS SECTION
+        - name: DYNAMODB_TABLE_NAME
+          value: "{{ .Values.dynamoDbTableName }}" # Passed from values.yaml
+        - name: AWS_REGION # Explicitly set the region for boto3
+          value: "us-east-1"

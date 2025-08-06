@@ -1,1 +1,3 @@
 Flask==2.3.2
+boto3==1.34.116 # For AWS SDK (DynamoDB)
+gunicorn==21.2.0 # Production WSGI server for Flask
