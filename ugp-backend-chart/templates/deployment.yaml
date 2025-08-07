@@ -16,9 +16,6 @@ spec:
         eks.amazonaws.com/role-arn: "arn:aws:iam::064827688814:role/ugp-backend-sa-role"
     spec:
       serviceAccountName: ugp-backend-service-account
-      # Keep imagePullSecrets for now as a temporary workaround if needed
-      imagePullSecrets:
-      - name: ecr-cred
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
