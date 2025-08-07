@@ -85,7 +85,7 @@ def hello():
     """
     return jsonify(message="Hello from the AWS UGP backend!", environment=os.environ.get('APP_ENVIRONMENT', 'development'))
 
-@app.route('/quotes', methods=['GET', 'POST'])
+@app.route('/messages', methods=['GET', 'POST'])
 def handle_quotes():
     """
     Handles both GET and POST requests for quotes.
