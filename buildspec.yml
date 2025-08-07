@@ -1,69 +1,46 @@
-    version: 0.2
+version: 0.2
 
-    # Define environment variables that CodeBuild will use.
-    # These should be set in your CodeBuild project configuration in Terraform.
-    # - AWS_ACCOUNT_ID: Your AWS Account ID (e.g., 123456789012)
-    # - AWS_DEFAULT_REGION: The AWS region where your ECR and EKS are (e.g., us-east-1)
-    # - IMAGE_REPO_NAME: The name of your ECR repository (e.g., funny-quote-backend)
-    # - EKS_CLUSTER_NAME: The name of your EKS cluster (e.g., my-eks-cluster)
-    # - KUBERNETES_NAMESPACE: The Kubernetes namespace for your deployment (e.g., default or quotes-app)
-    # - HELM_CHART_PATH: The path to your Helm chart directory (e.g., ugp-backend-chart)
-    # - HELM_RELEASE_NAME: The name of your Helm release (e.g., funny-quote-backend-release)
-    # - HELM_CHART_NAME: The name of the chart within the path (e.g., ugp-backend-chart)
+# The environment variables are set in the CodeBuild project resource
+# in backend-ci-cd.tf. We reference them here.
 
-    phases:
-      pre_build:
-        commands:
-          # Log in to Amazon ECR. The CodeBuild service role needs ECR permissions.
-          - echo Logging in to Amazon ECR...
-          - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
-          # Define the full URI for your ECR repository
-          - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
-          # Use the short Git commit hash as the Docker image tag for unique versions
-          - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      # Install required tools for EKS deployment
+      - curl -o kubectl https://s3.us-west-2.amazonaws.com/amazon-eks/1.24.11/2023-03-17/bin/linux/amd64/kubectl
+      - chmod +x ./kubectl
+      - mv ./kubectl /usr/local/bin/kubectl
+      - python -m pip install --upgrade pip
+      - pip install awscli
+      - apt-get update -y
+      - apt-get install -y gettext
+      - curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+      - chmod 700 get_helm.sh
+      - ./get_helm.sh
+      - apt-get install -y tar gzip
 
-          # Install kubectl
-          - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          - chmod +x kubectl
-          - mv kubectl /usr/local/bin/
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
 
-          # Install Helm
-          - curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
-          - chmod 700 get_helm.sh
-          - ./get_helm.sh
-          - helm version
-
-          # Configure aws-cli for EKS authentication to interact with the cluster
-          - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_DEFAULT_REGION
-
-      build:
-        commands:
-          # Build the Docker image using the Dockerfile in the current directory
-          - echo Build started on `date`
-          - echo Building the Docker image...
-          - docker build -t $REPOSITORY_URI:latest -t $REPOSITORY_URI:$IMAGE_TAG .
+  build:
+    commands:
+      - echo "Building the Docker image..."
+      - docker build -t $REPOSITORY_URI:latest .
+      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
 
   post_build:
     commands:
-      # Push the 'latest' tag and the specific commit-hash tagged image to ECR
-      - echo Build completed on `date`
-      - echo Pushing the Docker images to ECR...
+      - echo "Pushing the Docker image..."
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
-
-      # Deploy the Helm chart to EKS
-      # Assumes your Helm chart is located at $HELM_CHART_PATH (e.g., ugp-backend-chart)
-      # Assumes your values.yaml has an 'image.repository' and 'image.tag' key
-      # e.g., in values.yaml:
-      # image:
-      #   repository: YOUR_ECR_REPO_URI
-      #   tag: latest
-      - echo Deploying Helm chart to EKS...
-      - helm upgrade --install $HELM_RELEASE_NAME $HELM_CHART_PATH \
-          --namespace $KUBERNETES_NAMESPACE \
-          --set image.repository=$REPOSITORY_URI \
-          --set image.tag=$IMAGE_TAG \
-          --atomic --wait # --atomic rolls back on failure, --wait waits for deployment to be ready
-
-      - echo Helm deployment initiated for release $HELM_RELEASE_NAME in namespace $KUBERNETES_NAMESPACE.
-    
+      - echo "Updating kubeconfig for EKS cluster..."
+      - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_DEFAULT_REGION
+      - echo "Deploying with Helm..."
+      - helm upgrade --install $HELM_RELEASE_NAME $HELM_CHART_PATH -n $KUBERNETES_NAMESPACE --create-namespace --set image.repository=$REPOSITORY_URI,image.tag=$IMAGE_TAG
+      - echo "Deployment complete."
