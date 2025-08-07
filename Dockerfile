@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM public.ecr.aws/amazonlinux/python:3.9-slim
+FROM public.ecr.aws/docker/library/python:3.9-slim-bullseye
 
 # Set the working directory in the container
 WORKDIR /app
