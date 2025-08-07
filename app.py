@@ -34,7 +34,7 @@ def hello():
     """
     Existing hello endpoint.
     """
-    return jsonify(message="Hello from the UGP backend!", environment=os.environ.get('APP_ENVIRONMENT', 'development'))
+    return jsonify(message="Hello from the AWS UGP backend!", environment=os.environ.get('APP_ENVIRONMENT', 'development'))
 
 @app.route('/messages', methods=['GET', 'POST']) # Combined GET and POST for /messages
 def handle_messages():
