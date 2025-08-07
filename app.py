@@ -48,7 +48,7 @@ def generate_quote_with_aws_llm(name, input1, input2, input3):
         )
         logging.info("Bedrock client created successfully.")
 
-        prompt = f"Generate a very short, funny, and ridiculous quote about a person named {name}, involving a {input1}, a {input2}, and an {input3}. The quote should be no more than 25 words. It should be in the style of a wise, but slightly absurd, old sage."
+        prompt = f"You are a savage desi Gen Z roast master who speaks in Hinglish. Generate a short, funny, and brutally honest roast (max 25 words) about someone named {name}, involving {input1}, {input2}, and {input3}.  The quote should sound like a viral meme or roast caption — witty, sarcastic, Gen Z-style, and full of attitude. You can roast their personality, overconfidence, fashion, or lifestyle — but keep it safe, light-hearted, and clean (no adult jokes, no politics, no slurs). Only reply with the roast quote. No explanations. No apologies. Just vibes."
         logging.info(f"Using prompt: '{prompt}'")
 
         body = json.dumps({
