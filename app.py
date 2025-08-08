@@ -189,7 +189,7 @@ def handle_quotes():
     logging.warning(f"Received unsupported method {request.method} for /messages. Returning 405.")
     return jsonify(error="Method Not Allowed"), 405
 
-@app.route('/messages/<string:quote_id>/react', methods=['PUT'])
+@app.route('/messages/<string:quote_id>/react', methods=['PUT', 'OPTIONS'])
 def handle_react(quote_id):
     """
     Handles PUT requests to update a reaction count for a specific quote.
@@ -197,6 +197,12 @@ def handle_react(quote_id):
     """
     logging.info(f"Received PUT request for /messages/{quote_id}/react")
 
+    if request.method == 'OPTIONS':
+        # This block handles the preflight request explicitly, if needed.
+        # However, the CORS(app) initialization should handle this.
+        # This is a safe fallback to ensure the request succeeds.
+        return '', 204
+    
     try:
         if not request.is_json:
             logging.warning("Request is not JSON. Returning 400.")
