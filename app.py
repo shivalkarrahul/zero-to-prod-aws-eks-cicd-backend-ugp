@@ -1,15 +1,15 @@
-# app.py
-from flask import Flask, jsonify, request
-import os
 import boto3
+import os
 import uuid
 import time
-from flask_cors import CORS
 import json
-from boto3.dynamodb.conditions import Attr
-from botocore.exceptions import ClientError
 import traceback
 import logging
+
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+from boto3.dynamodb.conditions import Attr
+from botocore.exceptions import ClientError
 
 # --- Configure Logging ---
 logging.basicConfig(level=logging.INFO,
@@ -32,6 +32,9 @@ try:
     logging.info(f"DynamoDB table '{DYNAMODB_TABLE_NAME}' resource initialized successfully.")
 except Exception as e:
     logging.fatal(f"Failed to initialize DynamoDB table '{DYNAMODB_TABLE_NAME}': {e}")
+    # In a real-world scenario, you might want to exit the application here
+    # to prevent further errors.
+    pass
 
 # --- End DynamoDB Initialization ---
 
@@ -108,6 +111,8 @@ def handle_quotes():
     if request.method == 'GET':
         try:
             logging.info("Scanning DynamoDB for quotes...")
+            # Use a Scan operation to retrieve all items
+            # In a real app, you would want to use pagination for large datasets
             response = table.scan(
                 FilterExpression=Attr('quote').exists()
             )
@@ -115,10 +120,12 @@ def handle_quotes():
             sorted_items = sorted(response.get('Items', []), key=lambda x: x.get('timestamp', 0), reverse=True)
 
             for item in sorted_items:
+                # Include the reactions field in the response
                 quotes.append({
                     "id": item.get("id"),
                     "name": item.get("name", "Unknown"),
-                    "quote": item.get("quote", "No quote provided")
+                    "quote": item.get("quote", "No quote provided"),
+                    "reactions": item.get("reactions", {})
                 })
             logging.info(f"Retrieved {len(quotes)} quotes from DynamoDB.")
             return jsonify(quotes), 200
@@ -156,7 +163,12 @@ def handle_quotes():
                 'id': quote_id,
                 'name': name,
                 'quote': generated_quote,
-                'timestamp': current_timestamp
+                'timestamp': current_timestamp,
+                # Initialize all reaction counts to 0
+                'reactions': {
+                    'laugh': 0, 'love': 0, 'tears': 0, 'sad': 0, 'like': 0,
+                    'downvote': 0, 'report': 0
+                }
             }
             
             logging.info(f"Attempting to store new quote in DynamoDB with ID '{quote_id}'...")
@@ -177,6 +189,94 @@ def handle_quotes():
     logging.warning(f"Received unsupported method {request.method} for /messages. Returning 405.")
     return jsonify(error="Method Not Allowed"), 405
 
+@app.route('/messages/<string:quote_id>/react', methods=['PUT'])
+def handle_react(quote_id):
+    """
+    Handles PUT requests to update a reaction count for a specific quote.
+    Includes logic to automatically delete a quote if it receives more than 10 reports.
+    """
+    logging.info(f"Received PUT request for /messages/{quote_id}/react")
+
+    try:
+        if not request.is_json:
+            logging.warning("Request is not JSON. Returning 400.")
+            return jsonify(error="Request must be JSON"), 400
+        
+        data = request.get_json()
+        reaction_name = data.get('reaction')
+
+        if not reaction_name:
+            logging.warning("Reaction name is missing. Returning 400.")
+            return jsonify(error="Reaction name is required"), 400
+        
+        # --- FIX FOR BACKWARD COMPATIBILITY & AUTO-DELETE LOGIC ---
+        # This new logic handles items that are missing the 'reactions' map.
+        # It uses a two-step update to ensure the map exists before trying to update
+        # a nested attribute within it.
+        try:
+            # First, try to increment the counter directly. This works for new quotes
+            # or old quotes that already have the 'reactions' map.
+            response = table.update_item(
+                Key={'id': quote_id},
+                UpdateExpression='ADD #reactions.#reaction_name :val',
+                ConditionExpression='attribute_exists(#reactions)',
+                ExpressionAttributeNames={
+                    '#reactions': 'reactions',
+                    '#reaction_name': reaction_name
+                },
+                ExpressionAttributeValues={
+                    ':val': 1
+                },
+                ReturnValues='ALL_NEW'
+            )
+        except ClientError as e:
+            # If the reactions map does not exist, the first update will fail
+            # with a ConditionalCheckFailedException. This is where we handle old items.
+            if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                logging.info(f"Reaction map missing for quote ID '{quote_id}', attempting to create it...")
+                # Now, perform a second update that creates the 'reactions' map
+                # and sets the first reaction count.
+                response = table.update_item(
+                    Key={'id': quote_id},
+                    UpdateExpression='SET #reactions = :initial_map',
+                    ConditionExpression='attribute_not_exists(#reactions)',
+                    ExpressionAttributeNames={
+                        '#reactions': 'reactions'
+                    },
+                    ExpressionAttributeValues={
+                        ':initial_map': {reaction_name: 1}
+                    },
+                    ReturnValues='ALL_NEW'
+                )
+            else:
+                # If the error is something else, re-raise it.
+                raise e
+        
+        # --- AUTO-DELETE LOGIC: Check and delete if too many reports ---
+        updated_attributes = response.get('Attributes', {})
+        if reaction_name == 'report' and updated_attributes.get('reactions', {}).get('report', 0) > 10:
+            logging.info(f"Quote with ID '{quote_id}' received more than 10 reports. Deleting...")
+            table.delete_item(Key={'id': quote_id})
+            logging.info(f"Quote with ID '{quote_id}' successfully deleted from DynamoDB.")
+            return jsonify(message=f"Quote {quote_id} deleted due to excessive reports"), 200
+
+        # --- END OF FIX ---
+        
+        logging.info(f"Successfully updated reaction '{reaction_name}' for quote ID '{quote_id}'.")
+        return jsonify(response['Attributes']), 200
+
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+            logging.error(f"Quote with ID '{quote_id}' not found.")
+            return jsonify(error="Quote not found"), 404
+        else:
+            logging.error(f"DynamoDB ClientError during reaction update: {e}")
+            traceback.print_exc()
+            return jsonify(error="Failed to update reaction due to DynamoDB error"), 500
+    except Exception as e:
+        logging.error(f"Unhandled exception during reaction update: {e}")
+        traceback.print_exc()
+        return jsonify(error="Failed to update reaction"), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
