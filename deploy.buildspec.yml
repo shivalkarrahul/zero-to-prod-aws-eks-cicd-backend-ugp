@@ -33,4 +33,4 @@ phases:
   build:
     commands:
       - echo "Deploying with Helm to EKS..."
-      - helm upgrade --install $HELM_RELEASE_NAME $HELM_CHART_PATH --namespace $KUBERNETES_NAMESPACE --set image.repository=$IMAGE_URI --wait
+      - helm upgrade --install $HELM_RELEASE_NAME $HELM_CHART_PATH --namespace $KUBERNETES_NAMESPACE --set image.repository=$IMAGE_URI --set image.tag="" --wait
