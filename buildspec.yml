@@ -1,25 +1,13 @@
 version: 0.2
 
-# The environment variables are set in the CodeBuild project resource
-# in backend-ci-cd.tf. We reference them here.
-
 phases:
   install:
     runtime-versions:
       python: 3.11
     commands:
-      # Install required tools for EKS deployment
-      - curl -o kubectl https://s3.us-west-2.amazonaws.com/amazon-eks/1.24.11/2023-03-17/bin/linux/amd64/kubectl
-      - chmod +x ./kubectl
-      - mv ./kubectl /usr/local/bin/kubectl
+      - echo "Installing AWS CLI..."
       - python -m pip install --upgrade pip
       - pip install awscli
-      - apt-get update -y
-      - apt-get install -y gettext
-      - curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-      - chmod 700 get_helm.sh
-      - ./get_helm.sh
-      - apt-get install -y tar gzip
 
   pre_build:
     commands:
@@ -27,6 +15,8 @@ phases:
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - echo "Repository URI: $REPOSITORY_URI"
+      - echo "Image Tag: $IMAGE_TAG"
 
   build:
     commands:
@@ -36,11 +26,12 @@ phases:
 
   post_build:
     commands:
-      - echo "Pushing the Docker image..."
+      - echo "Pushing the Docker images to ECR..."
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
-      - echo "Updating kubeconfig for EKS cluster..."
-      - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_DEFAULT_REGION
-      - echo "Deploying with Helm..."
-      - helm upgrade --install $HELM_RELEASE_NAME $HELM_CHART_PATH -n $KUBERNETES_NAMESPACE --create-namespace --set image.repository=$REPOSITORY_URI,image.tag=$IMAGE_TAG
-      - echo "Deployment complete."
+      - echo "Writing image definitions file..."
+      - printf '[{"name":"%s","imageUri":"%s"}]' "$IMAGE_REPO_NAME" "$REPOSITORY_URI:$IMAGE_TAG" > image.json
+
+artifacts:
+  files:
+    - image.json

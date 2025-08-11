@@ -1,0 +1,15 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11 # Or your desired Python version
+    commands:
+      # Install a linter, for example, Flake8
+      - pip install flake8
+  build:
+    commands:
+      - echo "Running linting checks..."
+      # Run the linter. 'fail-fast' prevents later steps if linting fails.
+      - flake8 .
+      - echo "Linting passed."

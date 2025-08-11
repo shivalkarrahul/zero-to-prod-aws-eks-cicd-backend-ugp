@@ -1,0 +1,40 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - echo "Installing deployment tools..."
+      # Install kubectl
+      - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+      - chmod +x ./kubectl
+      - mv ./kubectl /usr/local/bin/kubectl
+      # Install Helm
+      - curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+      - chmod 700 get_helm.sh
+      - ./get_helm.sh
+      # Install AWS CLI
+      - python -m pip install --upgrade pip
+      - pip install awscli
+      # Install JQ (often needed for parsing JSON)
+      - apt-get update -y
+      - apt-get install -y jq
+      
+  pre_build:
+    commands:
+      - echo "Configuring kubectl for EKS cluster: $EKS_CLUSTER_NAME..."
+      - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_DEFAULT_REGION
+      - echo "Checking kubectl connectivity..."
+      - kubectl get svc -n $KUBERNETES_NAMESPACE
+      - IMAGE_URI=$(jq -r '.[0].imageUri' image.json)
+      - echo "Image URI from build: $IMAGE_URI"
+
+  build:
+    commands:
+      - echo "Deploying with Helm to EKS..."
+      - helm upgrade --install $HELM_RELEASE_NAME $HELM_CHART_PATH --namespace $KUBERNETES_NAMESPACE --set image.repository=$IMAGE_URI --wait
+
+artifacts:
+  files:
+    - '**/*'
