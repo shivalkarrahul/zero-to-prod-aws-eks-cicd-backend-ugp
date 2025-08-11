@@ -27,16 +27,20 @@ DYNAMODB_TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME',
                                      'ugp-eks-cicd-messages-table')
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 
-logging.info("Initializing DynamoDB resource for table '%s' in region '%s'...",
-             DYNAMODB_TABLE_NAME, AWS_REGION)
+logging.info(
+    "Initializing DynamoDB resource for table '%s' in region '%s'...",
+    DYNAMODB_TABLE_NAME, AWS_REGION
+)
 try:
     dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
     table = dynamodb.Table(DYNAMODB_TABLE_NAME)
-    logging.info(f"DynamoDB table '{DYNAMODB_TABLE_NAME}' "
-                 "resource initialized successfully.")
+    logging.info("DynamoDB table '%s' resource initialized successfully.",
+                 DYNAMODB_TABLE_NAME)
 except Exception as e:
-    logging.fatal("Failed to initialize DynamoDB table '%s': %s",
-                  DYNAMODB_TABLE_NAME, e)
+    logging.fatal(
+        "Failed to initialize DynamoDB table '%s': %s",
+        DYNAMODB_TABLE_NAME, e
+    )
     # In a real-world scenario, you might want to exit the application here
     # to prevent further errors.
     pass
@@ -60,13 +64,13 @@ def generate_quote_with_aws_llm(name, input1, input2, input3):
             f"You are a witty desi Gen Z roast master with perfect meme "
             f"timing. Write one short, hilarious roast (max 25 words) about "
             f"someone named {name}, involving {input1}, {input2}, and {input3}. "
-            f"Make it sound like a viral Instagram meme or reel caption — "
-            f"sarcastic, visual, and instantly relatable. The humor should be "
-            f"sharp but safe, like how friends roast each other in college "
-            f"group chats. No vulgarity, no adult jokes, no politics, no slurs. "
-            f"Use Hinglish. Only output the roast quote. Nothing else."
+            "Make it sound like a viral Instagram meme or reel caption — "
+            "sarcastic, visual, and instantly relatable. The humor should be "
+            "sharp but safe, like how friends roast each other in college "
+            "group chats. No vulgarity, no adult jokes, no politics, no slurs. "
+            "Use Hinglish. Only output the roast quote. Nothing else."
         )
-        logging.info(f"Using prompt: '{prompt}'")
+        logging.info("Using prompt: '%s'", prompt)
 
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
@@ -83,7 +87,7 @@ def generate_quote_with_aws_llm(name, input1, input2, input3):
         })
         model_id = 'anthropic.claude-3-sonnet-20240229-v1:0'
 
-        logging.info(f"Invoking model '{model_id}'...")
+        logging.info("Invoking model '%s'...", model_id)
 
         response = bedrock_client.invoke_model(
             body=body,
@@ -94,7 +98,7 @@ def generate_quote_with_aws_llm(name, input1, input2, input3):
 
         logging.info("Received response from Bedrock LLM. Reading body...")
         response_body = json.loads(response.get('body').read())
-        logging.debug(f"Raw response body from Bedrock: {response_body}")
+        logging.debug("Raw response body from Bedrock: %s", response_body)
 
         if ('content' not in response_body or
                 not response_body['content'] or
@@ -104,16 +108,16 @@ def generate_quote_with_aws_llm(name, input1, input2, input3):
             return "Could not generate a quote. Unexpected LLM response."
 
         generated_quote = response_body['content'][0]['text']
-        logging.info(f"Successfully generated quote: '{generated_quote}'")
+        logging.info("Successfully generated quote: '%s'", generated_quote)
 
         return generated_quote
 
     except ClientError as e:
-        logging.error(f"AWS ClientError when invoking Bedrock LLM: {e}")
+        logging.error("AWS ClientError when invoking Bedrock LLM: %s", e)
         traceback.print_exc()
         return "Could not generate a quote. An AWS client error occurred."
     except Exception as e:
-        logging.error(f"Unhandled exception when invoking Bedrock LLM: {e}")
+        logging.error("Unhandled exception when invoking Bedrock LLM: %s", e)
         traceback.print_exc()
         return "Could not generate a quote. The LLM is unavailable."
 
@@ -127,8 +131,8 @@ def handle_quotes():
     if request.method == 'GET':
         try:
             logging.info("Scanning DynamoDB for quotes...")
-            # Use a Scan operation to retrieve all items
-            # In a real app, you would want to use pagination for large datasets
+            # In a real app, you would want to use pagination
+            # for large datasets
             response = table.scan(
                 FilterExpression=Attr('quote').exists()
             )
@@ -145,10 +149,10 @@ def handle_quotes():
                     "quote": item.get("quote", "No quote provided"),
                     "reactions": item.get("reactions", {})
                 })
-            logging.info(f"Retrieved {len(quotes)} quotes from DynamoDB.")
+            logging.info("Retrieved %s quotes from DynamoDB.", len(quotes))
             return jsonify(quotes), 200
         except Exception as e:
-            logging.error(f"Error fetching quotes from DynamoDB: {e}")
+            logging.error("Error fetching quotes from DynamoDB: %s", e)
             traceback.print_exc()
             return jsonify(error="Failed to retrieve quotes"), 500
 
@@ -161,7 +165,7 @@ def handle_quotes():
                 return jsonify(error="Request must be JSON"), 400
 
             data = request.get_json()
-            logging.debug(f"Received JSON payload: {data}")
+            logging.debug("Received JSON payload: %s", data)
             name = data.get('name')
             input1 = data.get('input1')
             input2 = data.get('input2')
@@ -192,8 +196,8 @@ def handle_quotes():
                 }
             }
 
-            logging.info(f"Attempting to store new quote in DynamoDB with "
-                         f"ID '{quote_id}'...")
+            logging.info("Attempting to store new quote in DynamoDB with "
+                         "ID '%s'...", quote_id)
             table.put_item(Item=item)
             logging.info("Quote successfully stored in DynamoDB.")
 
@@ -205,19 +209,24 @@ def handle_quotes():
             ), 201
 
         except ClientError as e:
-            logging.error("DynamoDB ClientError during quote POST request: "
-                          f"{e}")
+            logging.error(
+                "DynamoDB ClientError during quote POST request: %s", e
+            )
             traceback.print_exc()
-            return jsonify(error="Failed to store quote due to "
-                                 "DynamoDB error"), 500
+            return jsonify(
+                error="Failed to store quote due to DynamoDB error"
+            ), 500
         except Exception as e:
-            logging.error("Unhandled exception during quote POST request: "
-                          f"{e}")
+            logging.error(
+                "Unhandled exception during quote POST request: %s", e
+            )
             traceback.print_exc()
-            return jsonify(error="Failed to generate or post quote"), 500
+            return jsonify(
+                error="Failed to generate or post quote"
+            ), 500
 
-    logging.warning(f"Received unsupported method {request.method} for "
-                    "/messages. Returning 405.")
+    logging.warning("Received unsupported method %s for /messages. "
+                    "Returning 405.", request.method)
     return jsonify(error="Method Not Allowed"), 405
 
 
@@ -228,7 +237,7 @@ def handle_react(quote_id):
     Includes logic to automatically delete a quote if it receives more than
     10 reports.
     """
-    logging.info(f"Received PUT request for /messages/{quote_id}/react")
+    logging.info("Received PUT request for /messages/%s/react", quote_id)
 
     if request.method == 'OPTIONS':
         # This block handles the preflight request explicitly, if needed.
@@ -272,9 +281,11 @@ def handle_react(quote_id):
             # If the reactions map does not exist, the first update will fail
             # with a ConditionalCheckFailedException. This is where we handle
             # old items.
-            if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
-                logging.info(f"Reaction map missing for quote ID '{quote_id}', "
-                             "attempting to create it...")
+            if (e.response['Error']['Code'] ==
+                    'ConditionalCheckFailedException'):
+                logging.info(
+                    "Reaction map missing for quote ID '%s', "
+                    "attempting to create it...", quote_id)
                 # Now, perform a second update that creates the 'reactions' map
                 # and sets the first reaction count.
                 response = table.update_item(
@@ -297,33 +308,35 @@ def handle_react(quote_id):
         updated_attributes = response.get('Attributes', {})
         if (reaction_name == 'report' and
                 updated_attributes.get('reactions', {}).get('report', 0) > 10):
-            logging.info("Quote with ID '{quote_id}' received more than 10 "
-                         "reports. Deleting...")
+            logging.info("Quote with ID '%s' received more than 10 reports. "
+                         "Deleting...", quote_id)
             table.delete_item(Key={'id': quote_id})
-            logging.info(f"Quote with ID '{quote_id}' successfully deleted "
-                         "from DynamoDB.")
+            logging.info("Quote with ID '%s' successfully deleted from "
+                         "DynamoDB.", quote_id)
             return jsonify(
                 message=f"Quote {quote_id} deleted due to excessive reports"
             ), 200
 
         # --- END OF FIX ---
 
-        logging.info(f"Successfully updated reaction '{reaction_name}' for "
-                     f"quote ID '{quote_id}'.")
+        logging.info("Successfully updated reaction '%s' for quote ID '%s'.",
+                     reaction_name, quote_id)
         return jsonify(response['Attributes']), 200
 
     except ClientError as e:
         if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
-            logging.error(f"Quote with ID '{quote_id}' not found.")
+            logging.error("Quote with ID '%s' not found.", quote_id)
             return jsonify(error="Quote not found"), 404
         else:
-            logging.error("DynamoDB ClientError during reaction update: "
-                          f"{e}")
+            logging.error(
+                "DynamoDB ClientError during reaction update: %s", e
+            )
             traceback.print_exc()
-            return jsonify(error="Failed to update reaction due to "
-                                 "DynamoDB error"), 500
+            return jsonify(
+                error="Failed to update reaction due to DynamoDB error"
+            ), 500
     except Exception as e:
-        logging.error(f"Unhandled exception during reaction update: {e}")
+        logging.error("Unhandled exception during reaction update: %s", e)
         traceback.print_exc()
         return jsonify(error="Failed to update reaction"), 500
 
