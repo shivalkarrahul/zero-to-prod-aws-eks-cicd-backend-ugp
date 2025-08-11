@@ -17,7 +17,7 @@ phases:
       # Install AWS CLI
       - python -m pip install --upgrade pip
       - pip install awscli
-      # Install JQ (often needed for parsing JSON)
+      # Install JQ (needed for parsing JSON)
       - apt-get update -y
       - apt-get install -y jq
       
@@ -34,7 +34,3 @@ phases:
     commands:
       - echo "Deploying with Helm to EKS..."
       - helm upgrade --install $HELM_RELEASE_NAME $HELM_CHART_PATH --namespace $KUBERNETES_NAMESPACE --set image.repository=$IMAGE_URI --wait
-
-artifacts:
-  files:
-    - '**/*'
