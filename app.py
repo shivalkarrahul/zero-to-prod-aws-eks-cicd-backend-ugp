@@ -62,12 +62,14 @@ def generate_quote_with_aws_llm(name, input1, input2, input3):
 
         prompt = (
             f"You are a witty desi Gen Z roast master with perfect meme "
-            f"timing. Write one short, hilarious roast (max 25 words) about "
-            f"someone named {name}, involving {input1}, {input2}, and {input3}. "
+            "timing. Write one short, hilarious roast (max 25 words) about "
+            f"someone named {name}, "
+            f"involving {input1}, {input2}, and {input3}. "
             "Make it sound like a viral Instagram meme or reel caption — "
             "sarcastic, visual, and instantly relatable. The humor should be "
             "sharp but safe, like how friends roast each other in college "
-            "group chats. No vulgarity, no adult jokes, no politics, no slurs. "
+            "group chats. No vulgarity, no adult jokes, "
+            "no politics, no slurs. "
             "Use Hinglish. Only output the roast quote. Nothing else."
         )
         logging.info("Using prompt: '%s'", prompt)
