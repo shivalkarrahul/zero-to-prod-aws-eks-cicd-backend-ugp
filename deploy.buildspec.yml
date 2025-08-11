@@ -27,7 +27,7 @@ phases:
       - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_DEFAULT_REGION
       - echo "Checking kubectl connectivity..."
       - kubectl get svc -n $KUBERNETES_NAMESPACE
-      - IMAGE_URI=$(jq -r '.[0].imageUri' image.json)
+      - IMAGE_URI=$(jq -r '.[0].imageUri' BuildArtifact/image.json)
       - echo "Image URI from build $IMAGE_URI"
 
   build:
