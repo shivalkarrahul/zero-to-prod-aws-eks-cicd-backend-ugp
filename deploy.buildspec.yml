@@ -27,10 +27,18 @@ phases:
       - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_DEFAULT_REGION
       - echo "Checking kubectl connectivity..."
       - kubectl get svc -n $KUBERNETES_NAMESPACE
-      - IMAGE_URI=$(jq -r '.[0].imageUri' "$CODEBUILD_SRC_DIR_BuildArtifact/image.json")
-      - echo "Image URI from build $IMAGE_URI"
+      - FULL_IMAGE_URI=$(jq -r '.[0].imageUri' "$CODEBUILD_SRC_DIR_BuildArtifact/image.json")
+      - echo "Full Image URI from build $FULL_IMAGE_URI"
+
+      # Split the full image URI into repository and tag
+      # This is the crucial fix to prevent the Helm chart from appending a second tag
+      - IMAGE_REPO=$(echo $FULL_IMAGE_URI | cut -d ':' -f 1)
+      - IMAGE_TAG=$(echo $FULL_IMAGE_URI | cut -d ':' -f 2)
+
+      - echo "Image repository $IMAGE_REPO"
+      - echo "Image tag $IMAGE_TAG"
 
   build:
     commands:
       - echo "Deploying with Helm to EKS..."
-      - helm upgrade --install $HELM_RELEASE_NAME $HELM_CHART_PATH --namespace $KUBERNETES_NAMESPACE --set image.repository=$IMAGE_URI --set image.tag="" --wait
+      - helm upgrade --install $HELM_RELEASE_NAME $HELM_CHART_PATH --namespace $KUBERNETES_NAMESPACE --set image.repository=$IMAGE_REPO --set image.tag=$IMAGE_TAG --wait
