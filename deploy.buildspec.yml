@@ -23,12 +23,12 @@ phases:
       
   pre_build:
     commands:
-      - echo "Configuring kubectl for EKS cluster: $EKS_CLUSTER_NAME..."
+      - echo "Configuring kubectl for EKS cluster $EKS_CLUSTER_NAME..."
       - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_DEFAULT_REGION
       - echo "Checking kubectl connectivity..."
       - kubectl get svc -n $KUBERNETES_NAMESPACE
       - IMAGE_URI=$(jq -r '.[0].imageUri' image.json)
-      - echo "Image URI from build: $IMAGE_URI"
+      - echo "Image URI from build $IMAGE_URI"
 
   build:
     commands:
