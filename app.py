@@ -27,16 +27,16 @@ DYNAMODB_TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME',
                                      'ugp-eks-cicd-messages-table')
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 
-logging.info(f"Initializing DynamoDB resource for table "
-             f"'{DYNAMODB_TABLE_NAME}' in region '{AWS_REGION}'...")
+logging.info("Initializing DynamoDB resource for table '%s' in region '%s'...",
+             DYNAMODB_TABLE_NAME, AWS_REGION)
 try:
     dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
     table = dynamodb.Table(DYNAMODB_TABLE_NAME)
     logging.info(f"DynamoDB table '{DYNAMODB_TABLE_NAME}' "
                  "resource initialized successfully.")
 except Exception as e:
-    logging.fatal(f"Failed to initialize DynamoDB table "
-                  f"'{DYNAMODB_TABLE_NAME}': {e}")
+    logging.fatal("Failed to initialize DynamoDB table '%s': %s",
+                  DYNAMODB_TABLE_NAME, e)
     # In a real-world scenario, you might want to exit the application here
     # to prevent further errors.
     pass
@@ -197,8 +197,12 @@ def handle_quotes():
             table.put_item(Item=item)
             logging.info("Quote successfully stored in DynamoDB.")
 
-            return jsonify(id=quote_id, name=name, quote=generated_quote,
-                           message="Quote generated and posted successfully"), 201
+            return jsonify(
+                id=quote_id,
+                name=name,
+                quote=generated_quote,
+                message="Quote generated and posted successfully"
+            ), 201
 
         except ClientError as e:
             logging.error("DynamoDB ClientError during quote POST request: "
@@ -298,8 +302,9 @@ def handle_react(quote_id):
             table.delete_item(Key={'id': quote_id})
             logging.info(f"Quote with ID '{quote_id}' successfully deleted "
                          "from DynamoDB.")
-            return jsonify(message=f"Quote {quote_id} deleted due to "
-                                   "excessive reports"), 200
+            return jsonify(
+                message=f"Quote {quote_id} deleted due to excessive reports"
+            ), 200
 
         # --- END OF FIX ---
 
