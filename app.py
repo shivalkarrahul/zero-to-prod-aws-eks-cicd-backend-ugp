@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO,
 app = Flask(__name__)
 CORS(app)
 
-logging.info("Flask application starting up...")
+logging.info("Flask application starting up... Demo Auto Trigger")
 
 
 # --- DynamoDB Initialization ---
